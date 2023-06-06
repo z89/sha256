@@ -5,9 +5,6 @@
 
 using namespace std;
 
-// first 32 bits of the fractional parts of the square roots of the first 8 primes, eg. (sqrt(x) - 1)
-uint32_t hashValues[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
-
 // first 32 bits of the fractional parts of the cube roots of the first 64 primes eg. (cbrt(x) - 1):
 uint32_t cubeConstants[64] = {
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -19,42 +16,33 @@ uint32_t cubeConstants[64] = {
   0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
   0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
-// void printBits(uint64_t value) {
-//     const uint64_t mask = 1ULL << 63; // Mask to extract the leftmost bit
+void printBits(uint64_t value) {
+    const uint64_t mask = 1ULL << 63; // Mask to extract the leftmost bit
 
-//     for (int i = 0; i < 64; ++i) {
-//         uint64_t bit = (value & (mask >> i)) >> (63 - i);
-//         cout << bit;
-//     }
+    for (int i = 0; i < 64; ++i) {
+        uint64_t bit = (value & (mask >> i)) >> (63 - i);
+        cout << bit;
+    }
 
-//     cout << endl;
-// }
+    cout << endl;
+}
 
-// void printByte(uint8_t byte) {
-//     for (int i = 8 - 1; i >= 0; i--) {
-//         cout << ((byte >> i) & 1);
-//     }
-//     cout << " ";
-// }
+void printByte(uint8_t byte) {
+    for (int i = 8 - 1; i >= 0; i--) {
+        cout << ((byte >> i) & 1);
+    }
+    cout << " ";
+}
 
-// void printWord(uint32_t word) {
-//     for (int i = 32 - 1; i >= 0; i--) {
-//         cout << ((word >> i) & 1);
-//         if (i % 8 == 0) {
-//             cout << " ";
-//         }
-//     }
-//     cout << endl;
-// }
-
-// uint8_t intToHex(int number) {
-//     if (number < 0 || number > 255) {
-//         cerr << "error: input needs to have a between 0 & 255 bits!" << endl;
-//         return 0;
-//     }
-
-//     return static_cast<uint8_t>(number & 0xFF);
-// }
+void printWord(uint32_t word) {
+    for (int i = 32 - 1; i >= 0; i--) {
+        cout << ((word >> i) & 1);
+        if (i % 8 == 0) {
+            cout << " ";
+        }
+    }
+    cout << endl;
+}
 
 // bitwise right rotation
 uint32_t rotr(uint32_t word, int amount) {
@@ -65,20 +53,23 @@ uint32_t sigma(uint32_t input, int firstRotation, int secondRotation, int bitShi
     return (rotr(input, firstRotation) ^ rotr(input, secondRotation) ^ input >> bitShift);
 };
 
-uint32_t *sha256(string input) {
-    uint64_t multiple = 512;                      // size of each chunk in bits
-    uint64_t inputBitLength = input.length() * 8; // size of input in bits
+void sha256(uint8_t *input, uint8_t size, uint8_t *output) {
+    // first 32 bits of the fractional parts of the square roots of the first 8 primes, eg. (sqrt(x) - 1)
+    uint32_t hashValues[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+
+    uint64_t multiple = 512;            // size of each chunk in bits
+    uint64_t inputBitLength = size * 8; // size of input in bits
 
     // calculate chunks needed to store input
     while (multiple < inputBitLength + (1 + 64)) {
         multiple += 512;
     }
 
-    int totalBytes = multiple / 8;                 // total bytes for input byte array
-    uint8_t inputBytes[totalBytes] = {0b00000000}; // initialize input into unsigned 8 bit array
+    int totalBytes = multiple / 8;           // total bytes for input byte array
+    uint8_t inputBytes[totalBytes] = {0x00}; // initialize input into unsigned 8 bit array
 
     // load the input into a byte array
-    for (uint32_t i = 0; i < input.length(); i++) {
+    for (uint32_t i = 0; i < size; i++) {
         inputBytes[i] = input[i];
     }
 
@@ -113,7 +104,7 @@ uint32_t *sha256(string input) {
         uint32_t g = hashValues[6];
         uint32_t h = hashValues[7];
 
-        // compression function main loop
+        // compression function loop
         for (uint8_t i = 0; i < 64; i++) {
             uint32_t s1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
             uint32_t ch = (e & f) ^ (~e & g);
@@ -143,34 +134,94 @@ uint32_t *sha256(string input) {
         hashValues[7] += h;
     }
 
-    return hashValues;
+    // convert the uint32 hash values to uint8 bytes
+    for (int i = 0; i < 8; ++i) {
+        output[i * 4 + 0] = (hashValues[i] >> 24) & 0xFF;
+        output[i * 4 + 1] = (hashValues[i] >> 16) & 0xFF;
+        output[i * 4 + 2] = (hashValues[i] >> 8) & 0xFF;
+        output[i * 4 + 3] = hashValues[i] & 0xFF;
+    }
 };
 
-int main() {
-    string input = "TestString@123";
-    string expectedHash = "18d0e7e10ee48e7b0bcfef80f0711df9822c78fc098ef7ace5dc9290e73c6fc5";
+int main(int argc, char *argv[]) {
+    string str;
+    bool custom = false;
 
-    auto start = chrono::high_resolution_clock::now();
+    if (argc > 1) {
+        if (argc > 2) {
+            cout << "Please only enter one string to hash" << endl;
+            return 0;
+        }
 
-    uint32_t *hash = sha256(input);
+        str = argv[1];
+        custom = true;
+    } else {
+        str = "TestString@123";
+    }
 
-    auto end = chrono::high_resolution_clock::now();
+    string expectedHashA = "18d0e7e10ee48e7b0bcfef80f0711df9822c78fc098ef7ace5dc9290e73c6fc5";
+    string expectedHashB = "214d44942de22b965668c7bb6c45928781aefe21e4ecdaa34f10da776ee91c2d";
 
-    stringstream hashString;
+    uint8_t hashesA[32];
+    uint8_t hashesB[32];
 
-    for (int i = 0; i < 8; i++) {
-        hashString << hex << setw(8) << setfill('0') << hash[i];
-    };
+    uint8_t *inputBytes = new uint8_t[str.length()];
+    std::memcpy(inputBytes, str.c_str(), str.length());
 
-    auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
+    auto hashAStart = chrono::high_resolution_clock::now();
+    sha256(inputBytes, str.length(), hashesA);
+    auto hashAEnd = chrono::high_resolution_clock::now();
 
-    double milliseconds = duration.count() / 1000.0;
-    cout << "execution time: " << milliseconds << " ms" << endl;
+    auto hashBStart = chrono::high_resolution_clock::now();
+    sha256(hashesA, 32, hashesB);
+    auto hashBEnd = chrono::high_resolution_clock::now();
+
+    stringstream hashA, hashB;
+
+    for (size_t i = 0; i < 32; ++i) {
+        hashA << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hashesA[i]);
+        hashB << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hashesB[i]);
+    }
+
+    auto durationA = chrono::duration_cast<chrono::microseconds>(hashAEnd - hashAStart);
+    auto durationB = chrono::duration_cast<chrono::microseconds>(hashBEnd - hashBStart);
+    auto totalDuration = chrono::duration_cast<chrono::microseconds>(hashBEnd - hashAStart);
+
+    if (custom) {
+        cout << "input:           " << str << endl;
+        cout << endl;
+
+        cout << "hashA:           " << hashA.str() << endl;
+        cout << "execution time:  " << durationA.count() / 1000.0 << " ms" << endl;
+        cout << endl;
+        cout << "hash doubling..." << endl;
+        cout << endl;
+
+        cout << "hashB:           " << hashB.str() << endl;
+        cout << "execution time:  " << durationB.count() / 1000.0 << " ms" << endl;
+        cout << endl;
+
+    } else {
+        cout << "input:           " << str << endl;
+        cout << endl;
+
+        cout << "hashA:           " << hashA.str() << endl;
+        cout << "expectedHashA :  " << expectedHashA << endl;
+        cout << "match:           " << (hashA.str() == expectedHashA ? "true" : "false") << endl;
+        cout << "execution time:  " << durationA.count() / 1000.0 << " ms" << endl;
+        cout << endl;
+        cout << "hash doubling..." << endl;
+        cout << endl;
+
+        cout << "hashB:           " << hashB.str() << endl;
+        cout << "expectedHashB :  " << expectedHashB << endl;
+        cout << "match:           " << (hashB.str() == expectedHashB ? "true" : "false") << endl;
+        cout << "execution time:  " << durationB.count() / 1000.0 << " ms" << endl;
+        cout << endl;
+    }
+
+    cout << "total execution time:  " << totalDuration.count() / 1000.0 << " ms" << endl;
     cout << endl;
-
-    cout << "matches: " << (hashString.str() == expectedHash ? "true" : "false") << endl;
-    cout << "generated hash: " << hashString.str() << endl;
-    cout << "expected hash:  " << expectedHash << endl;
 
     return 0;
 }
