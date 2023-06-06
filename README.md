@@ -1,6 +1,6 @@
-a sha256 implementation in c++ without any dependencies
+a sha256 implementation in c++
 
 todo: 
-- support abitrary length input (broken due to 64 bit input size conversion)
+- ~~support arbitrary length input~~
 - optimize bitwise operations
-- improve memory allocation
+- ~~improve memory allocation~~
